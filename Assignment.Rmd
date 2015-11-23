@@ -79,7 +79,7 @@ modelFit <- train(classe ~ ., data = pml.training, method="rf",trainControl =tra
 To evaluate the model, it was used the validation set, we can see the fusematrix after training.
 
 ```{r ,cache=TRUE}
-modekFit$finalmodel
+modelFit$finalmodel
 ```
 
 ##Test dataset

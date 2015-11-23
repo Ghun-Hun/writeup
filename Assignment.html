@@ -73,7 +73,7 @@ img {
 </div>
 <div id="load-the-mtcars-data-and-clean-data" class="section level2">
 <h2>Load the mtcars data and clean data</h2>
-<p>We downloaded training and testing file , and read file by read.csv command.First,we can see the dataset structure by str command, and remove 1st to 7th variables. We can found some varialbes for dataset have many missing value (&gt; 90%) .We need to remove these before preprocess to avoid impute step produce some problem.</p>
+<p>We downloaded training and testing file , and read file by read.csv command.First,we can see the dataset structure by str command, and remove 1st to 7th variables. We can found some varialbes for dataset have many missing value (&gt; 90%) .We need to remove these before preprocess to avoid impute step produce error.</p>
 <pre class="r"><code>library(caret)</code></pre>
 <pre><code>## Loading required package: lattice
 ## Loading required package: ggplot2</code></pre>
@@ -196,34 +196,42 @@ str(pml.training)</code></pre>
 ##  $ min_yaw_dumbbell        : num  NA NA NA NA NA NA NA NA NA NA ...
 ##  $ amplitude_roll_dumbbell : num  NA NA NA NA NA NA NA NA NA NA ...
 ##   [list output truncated]</code></pre>
-<pre class="r"><code>data_preprocess&lt;-function(rawdata)
-{
-  rawdata&lt;-rawdata[-c(1:7)]
-  #rawdata$cvtd_timestamp&lt;-dmy_hms(rawdata$cvtd_timestamp)  
+<pre class="r"><code>data.preprocess&lt;-function(data){
+  data&lt;-data[-c(1:7)]
   detect.na&lt;-function(data){
     if(sum(is.na(data))/length(data)&gt;0.9)
-    {invisible(TRUE)
+    { tt&lt;-TRUE
       }
     else
-      { invisible(FALSE)}
-    
+    { tt&lt;-FALSE
+      }
+    invisible(tt)
   }
-  NA.col&lt;-sapply(rawdata,detect.na)  
-  rawdata&lt;-rawdata[,-NA.col]
-  rawdata.zero &lt;-nearZeroVar(rawdata)
-  rawdata&lt;-rawdata[,-rawdata.zero]
-  #rawdata.impute&lt;-preProcess(rawdata,method=c(&quot;knnImpute&quot;))
-  #rawdata&lt;-predict(rawdata.impute,newdata=rawdata)
-  rawdata
+  NA.col&lt;-sapply(data,detect.na)  
+  data&lt;-data[,!NA.col]
+  class&lt;-length(data)
+  #
+  pred.corr &lt;- cor(data[,-class])
+  data &lt;- data[, -findCorrelation(pred.corr)]
+ 
+  data.zero &lt;-nearZeroVar(data[,-class],saveMetrics = TRUE)
+  data&lt;-data[,!as.logical(data.zero$nzv)]
+  
+  if(any(is.na(data))){  
+   #data.impute&lt;-preProcess(data[,-class],method=c(&quot;center&quot;, &quot;scale&quot;,&quot;knnImpute&quot;, &quot;pca&quot;), thresh=0.9)
+    data.impute&lt;-preProcess(subsetTraining[,-class],method=&quot;bagImpute&quot;)
+    data[,-class]&lt;-predict(data.impute,data[,-class])
+  }
+  data
 }
-#pml.test&lt;-data_preprocess(pml.test)
-pml.training&lt;-data_preprocess(pml.training)
-set.seed(13333)
-trainpara &lt;- trainControl(allowParallel = TRUE, method = &quot;cv&quot;, number = 5)
-modelFit &lt;- train(classe ~ ., data = pml.training, method=&quot;rf&quot;,
-                  trainControl = trainpara, importance=TRUE)</code></pre>
-<pre><code>## Loading required package: randomForest
-## randomForest 4.6-12
+
+pml.training&lt;-data.preprocess(pml.training)</code></pre>
+</div>
+<div id="model-train" class="section level2">
+<h2>Model Train</h2>
+<p>After preprocess,we fit model by random forest method.</p>
+<pre class="r"><code>library(randomForest)</code></pre>
+<pre><code>## randomForest 4.6-12
 ## Type rfNews() to see new features/changes/bug fixes.
 ## 
 ## Attaching package: 'randomForest'
@@ -231,9 +239,19 @@ modelFit &lt;- train(classe ~ ., data = pml.training, method=&quot;rf&quot;,
 ## The following object is masked from 'package:dplyr':
 ## 
 ##     combine</code></pre>
-<pre class="r"><code>#root&lt;-train(classe~.,data=pml.training,method=&quot;rf&quot;)  </code></pre>
-<p>You can also embed plots, for example:</p>
-<p>Note that the <code>echo = FALSE</code> parameter was added to the code chunk to prevent printing of the R code that generated the plot.</p>
+<pre class="r"><code> library(doParallel) </code></pre>
+<pre><code>## Loading required package: foreach
+## Loading required package: iterators
+## Loading required package: parallel</code></pre>
+<pre class="r"><code>registerDoParallel(makeCluster(detectCores())) 
+set.seed(50351)
+trainPar &lt;- trainControl(allowParallel = TRUE, method = &quot;cv&quot;, number =3)
+modelFit &lt;- train(classe ~ ., data = pml.training, method=&quot;rf&quot;,trainControl =trainPar, importance=TRUE)
+#modekFit$final</code></pre>
+</div>
+<div id="cross-validation-and-model-evaluation" class="section level2">
+<h2>Cross-Validation and Model Evaluation</h2>
+<p>To evaluate the model, it was used the validation set, a subset of size 50 from the training set independent from the variable ‘subsetTraining’. Because of the Random Forest algorithm, the error measure is the actual cross-validation error.</p>
 </div>
 
 
