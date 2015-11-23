@@ -8,9 +8,9 @@ output: html_document
 
 In this project, the goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. 
 The training data for this project are available here: 
-https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
-The test data are available here: 
-https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv  
+The test data are available here:   
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv  
 
 ##Load the mtcars data and clean data 
 
@@ -62,8 +62,7 @@ pml.training<-data.preprocess(pml.training)
 
 ## Model Train
 
-After preprocess,we fit model by random forest method.We usr doParallel package to short running time.
-
+After preprocess,we fit model by random forest method.We use doParallel package to short running time.
 ```{r ,cache=TRUE}
 library(randomForest)
  library(doParallel) 
@@ -76,19 +75,20 @@ modelFit <- train(classe ~ ., data = pml.training, method="rf",trainControl =tra
 
 ## Cross-Validation and Model Evaluation
 
-To evaluate the model, it was used the validation set, we can see the fusematrix after training.
+To evaluate the model, it was used the validation set, we can see the fusematrix after training.The OOB estimate of  error rate is 0.41%.
 
 ```{r ,cache=TRUE}
-modelFit$finalmodel
+modelFit$finalModel
 ```
 
 ##Test dataset
 
 After we get fine model, we predicted classe for test dataset ,and save result in text file.  
 ```{r ,cache=TRUE}
-pml.test$classe<-1:nrow(pm.test)
-pml.test<-pml.test[,pml.test %in% pml.training]
+pml.test$classe<-1:nrow(pml.test)
+pml.test<-pml.test[names(pml.training)]
 test<-predict(modelFit,pml.test)
+test
 pml_write = function(x){
   ll = length(x)
   path <- "test"
