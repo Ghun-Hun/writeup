@@ -1,0 +1,101 @@
+---
+title: "Assignment Writeup - Prediction of how was Exercise Performed"
+author: "Ghun Hun Liu"
+date: "2015/11/21"
+output: html_document
+---
+## Synopsis
+
+In this project, the goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. 
+The training data for this project are available here: 
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+The test data are available here: 
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+##Load the mtcars data and clean data 
+
+We downloaded training and testing file , and read file by read.csv command.First,we can see the dataset structure by str command, and remove 1st to 7th variables. We can found some varialbes for dataset have many missing value (> 90%) .We need to remove these before preprocess to avoid impute step produce error.
+
+```{r,cache=TRUE}
+library(caret)
+library(rpart)
+library(dplyr)
+library(lubridate)
+#download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv","pml-training.csv",method = "curl")
+#download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv","pml-testing.csv",method = "curl")
+pml.training<-read.csv("pml-training.csv",header=TRUE,na.strings = c("NA", "", "#DIV/0!"))
+pml.test<-read.csv("pml-testing.csv",header=TRUE,na.strings = c("NA", "", "#DIV/0!"))
+str(pml.training)
+data.preprocess<-function(data){
+  data<-data[-c(1:7)]
+  detect.na<-function(data){
+    if(sum(is.na(data))/length(data)>0.9)
+    { tt<-TRUE
+      }
+    else
+    { tt<-FALSE
+      }
+    invisible(tt)
+  }
+  NA.col<-sapply(data,detect.na)  
+  data<-data[,!NA.col]
+  class<-length(data)
+  #
+  pred.corr <- cor(data[,-class])
+  data <- data[, -findCorrelation(pred.corr)]
+ 
+  data.zero <-nearZeroVar(data[,-class],saveMetrics = TRUE)
+  data<-data[,!as.logical(data.zero$nzv)]
+  
+  if(any(is.na(data))){  
+   #data.impute<-preProcess(data[,-class],method=c("center", "scale","knnImpute", "pca"), thresh=0.9)
+    data.impute<-preProcess(subsetTraining[,-class],method="bagImpute")
+    data[,-class]<-predict(data.impute,data[,-class])
+  }
+  data
+}
+
+pml.training<-data.preprocess(pml.training)
+
+```
+
+
+## Model Train
+
+After preprocess,we fit model by random forest method.We usr doParallel package to short running time.
+
+```{r ,cache=TRUE}
+library(randomForest)
+ library(doParallel) 
+registerDoParallel(makeCluster(detectCores())) 
+set.seed(50351)
+trainPar <- trainControl(allowParallel = TRUE, method = "cv", number =3)
+modelFit <- train(classe ~ ., data = pml.training, method="rf",trainControl =trainPar, importance=TRUE)
+
+```
+
+## Cross-Validation and Model Evaluation
+
+To evaluate the model, it was used the validation set, we can see the fusematrix after training.
+
+```{r ,cache=TRUE}
+modekFit$finalmodel
+```
+
+##Test dataset
+
+After we get fine model, we predicted classe for test dataset ,and save result in text file.  
+```{r ,cache=TRUE}
+pml.test$classe<-1:nrow(pm.test)
+pml.test<-pml.test[,pml.test %in% pml.training]
+test<-predict(modelFit,pml.test)
+pml_write = function(x){
+  ll = length(x)
+  path <- "test"
+  for(i in 1:ll){
+    filename = paste0("pml.id.",i,".txt")
+    write.table(x[i],file=file.path(path,filename),quote=FALSE,row.names=FALSE,col.names=FALSE)
+  }
+}
+pml_write(test)
+```

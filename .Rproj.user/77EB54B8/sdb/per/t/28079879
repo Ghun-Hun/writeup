@@ -1,0 +1,18 @@
+{
+    "contents" : "---\ntitle: \"Assignment Writeup - Prediction of how was Exercise Performed\"\nauthor: \"Ghun Hun Liu\"\ndate: \"2015/11/21\"\noutput: html_document\n---\n## Synopsis\n\nIn this project, the goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. \nThe training data for this project are available here: \nhttps://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv\nThe test data are available here: \nhttps://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv\n\n##Load the mtcars data and clean data \n\nWe downloaded training and testing file , and read file by read.csv command.First,we can see the dataset structure by str command, and remove 1st to 7th variables. We can found some varialbes for dataset have many missing value (> 90%) .We need to remove these before preprocess to avoid impute step produce error.\n\n```{r,cache=TRUE}\nlibrary(caret)\nlibrary(rpart)\nlibrary(dplyr)\nlibrary(lubridate)\n#download.file(\"https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv\",\"pml-training.csv\",method = \"curl\")\n#download.file(\"https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv\",\"pml-testing.csv\",method = \"curl\")\npml.training<-read.csv(\"pml-training.csv\",header=TRUE,na.strings = c(\"NA\", \"\", \"#DIV/0!\"))\npml.test<-read.csv(\"pml-testing.csv\",header=TRUE,na.strings = c(\"NA\", \"\", \"#DIV/0!\"))\nstr(pml.training)\ndata.preprocess<-function(data){\n  data<-data[-c(1:7)]\n  detect.na<-function(data){\n    if(sum(is.na(data))/length(data)>0.9)\n    { tt<-TRUE\n      }\n    else\n    { tt<-FALSE\n      }\n    invisible(tt)\n  }\n  NA.col<-sapply(data,detect.na)  \n  data<-data[,!NA.col]\n  class<-length(data)\n  #\n  pred.corr <- cor(data[,-class])\n  data <- data[, -findCorrelation(pred.corr)]\n \n  data.zero <-nearZeroVar(data[,-class],saveMetrics = TRUE)\n  data<-data[,!as.logical(data.zero$nzv)]\n  \n  if(any(is.na(data))){  \n   #data.impute<-preProcess(data[,-class],method=c(\"center\", \"scale\",\"knnImpute\", \"pca\"), thresh=0.9)\n    data.impute<-preProcess(subsetTraining[,-class],method=\"bagImpute\")\n    data[,-class]<-predict(data.impute,data[,-class])\n  }\n  data\n}\n\npml.training<-data.preprocess(pml.training)\n\n```\n\n\n## Model Train\n\nAfter preprocess,we fit model by random forest method.\n\n```{r ,cache=TRUE}\nlibrary(randomForest)\n library(doParallel) \nregisterDoParallel(makeCluster(detectCores())) \nset.seed(50351)\ntrainPar <- trainControl(allowParallel = TRUE, method = \"cv\", number =3)\nmodelFit <- train(classe ~ ., data = pml.training, method=\"rf\",trainControl =trainPar, importance=TRUE)\n#modekFit$final\n```\n\n## Cross-Validation and Model Evaluation\n\nTo evaluate the model, it was used the validation set, a subset of size 50 from the training set independent from the variable ‘subsetTraining’. Because of the Random Forest algorithm, the error measure is the actual cross-validation error.\n",
+    "created" : 1448115409840.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "559828522",
+    "id" : "28079879",
+    "lastKnownWriteTime" : 1448233643,
+    "path" : "~/Assignment Writeup/Assignment.Rmd",
+    "project_path" : "Assignment.Rmd",
+    "properties" : {
+        "tempName" : "Untitled1"
+    },
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "type" : "r_markdown"
+}
